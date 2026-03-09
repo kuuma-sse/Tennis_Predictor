@@ -5,10 +5,12 @@ import glob
 import matplotlib as plt
 import numpy as np
 from torch_geometric.data import Data
+from sklearn.preprocessing import StandardScaler
 
 from numpy.ma.extras import average
 from six import print_
 
+# loading dataframe
 path = r'C:\Users\hkute\Documents\LearningPython\tennis_predictor\Tennis_Predictor\datasets'
 
 all_files = glob.glob(path + r"\atp_matches_*.csv")
@@ -61,10 +63,11 @@ official_df = player_averages.merge(atp_players_new[['player','height','player_i
 official_df['player_id'] = official_df['player_id'].astype('Int64')
 official_df['dob'] = official_df['dob'].astype('Int64')
 
-#print(official_df)
+print(official_df)
 #specific_player = official_df[official_df['ace'] > 15]
 #print(specific_player)
 
+# make sure there is only one player per row
 print(max(official_df['player_id'].value_counts()))
 
 #sort players and extract node features
@@ -73,7 +76,7 @@ sorted_df = official_df.sort_values(by='player_id')
 
 node_features = sorted_df[['ace','df','svpt','1stIn','1stWon','2ndWon', 'SvGms','bpSaved','bpFaced','height','dob','hand']]
 
-#convert non-numeric vals
+#convert non-numeric vals/one hot encoding for dominant hand
 
 pd.set_option('mode.chained_assignment', None)
 #handness = node_features["hand"].str.split(",", expand=True)
@@ -82,7 +85,14 @@ hands = pd.get_dummies(node_features.hand, dtype=int)
 node_features = pd.concat([node_features, hands], axis='columns')
 node_features.drop(["hand"], axis='columns', inplace=True)
 
-#print(node_features)
+
+sc = StandardScaler()
+cols_to_scale = ['ace','df','svpt','1stIn','1stWon','2ndWon','SvGms','bpSaved','bpFaced','height','dob']
+scaled = sc.fit_transform(node_features[cols_to_scale])
+
+
+
+print(node_features)
 
 # Convert to numpy
 x = node_features.to_numpy()
