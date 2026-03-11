@@ -79,5 +79,5 @@ with torch.no_grad():
 
 # model save
 
-torch.save(model, 'GraphSage_Model.pt')
+torch.save(model.state_dict(), 'GraphSage_Model.pt')
 print('Graph Sage Model saved')
