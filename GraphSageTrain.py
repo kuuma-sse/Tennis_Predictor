@@ -4,11 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import SAGEConv
 
-train_data = torch.load('train_data.pt', weights_only=False)
-val_data = torch.load('val_data.pt', weights_only=False)
-test_data = torch.load('test_data.pt', weights_only=False)
 
-node_num_features = train_data.x.shape[1]
 
 # graph sage
 class GraphSageTrain(nn.Module):
@@ -38,46 +34,51 @@ class GraphSageTrain(nn.Module):
 
 
 
+if __name__ == '__main__':
+    train_data = torch.load('train_data.pt', weights_only=False)
+    val_data = torch.load('val_data.pt', weights_only=False)
+    test_data = torch.load('test_data.pt', weights_only=False)
 
-model = GraphSageTrain(in_channels=node_num_features, hidden_channels=64)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-criterion = nn.BCEWithLogitsLoss()
+    node_num_features = train_data.x.shape[1]
+    model = GraphSageTrain(in_channels=node_num_features, hidden_channels=64)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.BCEWithLogitsLoss()
 
 # model training
-for epoch in range(300):
-    model.train()
-    optimizer.zero_grad()
+    for epoch in range(300):
+        model.train()
+        optimizer.zero_grad()
 
-    out = model(train_data.x, train_data.edge_index, train_data.edge_label_index)
-    loss = criterion(out, train_data.edge_label)
-    loss.backward()
-    optimizer.step()
+        out = model(train_data.x, train_data.edge_index, train_data.edge_label_index)
+        loss = criterion(out, train_data.edge_label)
+        loss.backward()
+        optimizer.step()
 
+        model.eval()
+        with torch.no_grad():
+            val_out = model(val_data.x, val_data.edge_index, val_data.edge_label_index)
+            val_loss = criterion(val_out, val_data.edge_label)
+
+
+
+
+        if epoch % 10 == 0:
+            print('Epoch [{}/{}], Train Loss: {:.4f}, Val Loss: {:.4f}'.format(epoch + 1, 300, loss.item(), val_loss.item()))
+
+    # testing
     model.eval()
     with torch.no_grad():
-        val_out = model(val_data.x, val_data.edge_index, val_data.edge_label_index)
-        val_loss = criterion(val_out, val_data.edge_label)
+        test_out = model(test_data.x, test_data.edge_index, test_data.edge_label_index)
+        test_loss = criterion(test_out, test_data.edge_label)
 
+        probs = torch.sigmoid(test_out)
+        predicts = (probs > 0.5).float()
+        accuracy = (predicts == test_data.edge_label).float().mean()
 
+        print(f'Test Loss: {test_loss.item():.4f}')
+        print(f'Test Accuracy: {accuracy.item():.4f}')
 
+    # model save
 
-    if epoch % 10 == 0:
-        print('Epoch [{}/{}], Train Loss: {:.4f}, Val Loss: {:.4f}'.format(epoch + 1, 300, loss.item(), val_loss.item()))
-
-# testing
-model.eval()
-with torch.no_grad():
-    test_out = model(test_data.x, test_data.edge_index, test_data.edge_label_index)
-    test_loss = criterion(test_out, test_data.edge_label)
-
-    probs = torch.sigmoid(test_out)
-    predicts = (probs > 0.5).float()
-    accuracy = (predicts == test_data.edge_label).float().mean()
-
-    print(f'Test Loss: {test_loss.item():.4f}')
-    print(f'Test Accuracy: {accuracy.item():.4f}')
-
-# model save
-
-torch.save(model.state_dict(), 'GraphSage_Model_v2.pt')
-print('Graph Sage Model Version 2 saved')
+    torch.save(model.state_dict(), 'GraphSage_Model_v2.pt')
+    print('Graph Sage Model Version 2 saved')
