@@ -3,6 +3,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import SAGEConv
+from sklearn.metrics import *
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+from colorama import Fore, Style
 
 
 
@@ -45,7 +49,13 @@ if __name__ == '__main__':
     criterion = nn.BCEWithLogitsLoss()
 
 # model training
-    for epoch in range(300):
+    progress_bar = tqdm(range(300), bar_format="\033[92m{l_bar}{bar}{r_bar}\033[0m")
+
+    for epoch in progress_bar:
+        actual_epoch = epoch + 1
+
+
+
         model.train()
         optimizer.zero_grad()
 
@@ -59,11 +69,21 @@ if __name__ == '__main__':
             val_out = model(val_data.x, val_data.edge_index, val_data.edge_label_index)
             val_loss = criterion(val_out, val_data.edge_label)
 
+            probs = torch.sigmoid(val_out).cpu().numpy()
+            predicts = (probs > 0.5).astype(int)
+            labels = val_data.edge_label.cpu().numpy()
+
+            acc = accuracy_score(labels, predicts)
+            precision = precision_score(labels, predicts)
+            recall = recall_score(labels, predicts)
+            f1 = f1_score(labels, predicts)
+            auc = roc_auc_score(labels, probs)
 
 
-
-        if epoch % 10 == 0:
-            print('Epoch [{}/{}], Train Loss: {:.4f}, Val Loss: {:.4f}'.format(epoch + 1, 300, loss.item(), val_loss.item()))
+        if epoch % 10 == 9:
+            start = (epoch // 10) * 10 + 1
+            end = epoch + 1
+            tqdm.write(f"Epochs {start}-{end} | Train Loss: {loss:.4f} | Val Loss: {val_loss:.4f} | Accuracy: {acc:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f} | F1: {f1:.4f} | AUC: {auc:.4f}")
 
     # testing
     model.eval()
@@ -71,14 +91,33 @@ if __name__ == '__main__':
         test_out = model(test_data.x, test_data.edge_index, test_data.edge_label_index)
         test_loss = criterion(test_out, test_data.edge_label)
 
-        probs = torch.sigmoid(test_out)
-        predicts = (probs > 0.5).float()
-        accuracy = (predicts == test_data.edge_label).float().mean()
+        probs = torch.sigmoid(test_out).cpu().numpy()
+        predicts = (probs > 0.5).astype(int)
+        labels = test_data.edge_label.cpu().numpy()
+
+        acc = accuracy_score(labels, predicts)
+        precision = precision_score(labels, predicts)
+        recall = recall_score(labels, predicts)
+        f1 = f1_score(labels, predicts)
+        auc = roc_auc_score(labels, probs)
 
         print(f'Test Loss: {test_loss.item():.4f}')
-        print(f'Test Accuracy: {accuracy.item():.4f}')
+        print(f'Val Loss: {val_loss:.4f}')
+        print(f'Test Accuracy: {acc:.4f}')
+        print(f'Test Precision: {precision:.4f}')
+        print(f'Test Recall: {recall:.4f}')
+        print(f'Test F1: {f1:.4f}')
+        print(f'Test AUC: {auc:.4f}')
+
+        # confusion matrix
+        cm = confusion_matrix(labels, predicts)
+        display = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Opponent wins", "Player wins"])
+        display.plot()
+        plt.title("Confusion Matrix - Graph Sage Test Set")
+        plt.savefig('ConfusionMatrix_GraphSageTestSet.png')
+        plt.show()
 
     # model save
 
-    torch.save(model.state_dict(), 'GraphSage_Model_v2.pt')
-    print('Graph Sage Model Version 2 saved')
+    torch.save(model.state_dict(), 'GraphSage_Model_v3.pt')
+    print('Graph Sage Model Version 3 saved')
