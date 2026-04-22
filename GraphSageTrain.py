@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,7 +5,6 @@ from torch_geometric.nn import SAGEConv
 from sklearn.metrics import *
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from colorama import Fore, Style
 
 
 
